@@ -1,60 +1,21 @@
 import config
 import os
 from pathlib import Path
-import mne
-from mne.io import read_raw_eeglab
-from pyprep.prep_pipeline import PrepPipeline
-from pyprep import find_noisy_channels
-
 import pdb
 
 
 
-def getFilesFromFolder(folderPath):
-    """
-    Recursively get all file paths from the given directory.
-    
-    Args:
-    directory (str): The directory from which to retrieve file paths.
-    
-    Returns:
-    list: A list of file paths.
-    """
-    filePaths = []
-    
-    for root, directories, files in os.walk(folderPath):
-        for filename in files:
-            filePath = os.path.join(root, filename)
-            filePaths.append(filePath)
-    
-    return filePaths
 
-
-def loadPatientData(patiendID='sub-10'):
-
-    folders = getDirFromFolder()
-
-    for folder in folders:
-        print(folder)
-        filesInCurrentFolder = getFilesFromFolder(folder)
-
-        for file in filesInCurrentFolder:
-            pdb.set_trace()
-            data = mne.io.read_raw_fif(file, preload=True)
-
-
-
-#####################FDT Files Related########################
-def listFdtFiles(directory):
-    fdtFiles = []
+#####################fif Files Related########################
+def listFifFiles(directory):
+    fifFiles = []
     for root, dirs, files in os.walk(directory):
         for file in files:
-            print(file)
-            if not file.endswith('.fdt'):
+            if file.endswith('.fif'):
                 filePath = os.path.join(root, file)
-                fdtFiles.append(filePath)
+                fifFiles.append(filePath)
     
-    return fdtFiles
+    return fifFiles
 
 def getDirFromFolder(folderPath = config.datasetDir):
     """
@@ -70,32 +31,24 @@ def getDirFromFolder(folderPath = config.datasetDir):
         return directories, directoriesWithPaths
     except Exception as e:
         print(f"An error occurred: {e}")
-        return []
+        return [], []
     
-def getALlFdtFilesWithPaths(fdtDir = config.rawDatasetDir):
-    fdtFilesPathsWithSubjectId = []
-    fdtSubjextDirsNames, fdtSubjectDirsWithPaths = getDirFromFolder(fdtDir)
-    for dirName, dirPath in zip(fdtSubjextDirsNames, fdtSubjectDirsWithPaths):
-        filesInDir = listFdtFiles(dirPath)
-        for file in filesInDir:
-            fdtFilesPathsWithSubjectId.append([dirName, file])
+def getAllFilesWithPaths(fifDir = config.rawDatasetDir):
+    allFilesWithPaths = []
+    
+    _, subjectDirNamesWithPaths = getDirFromFolder(fifDir)
+    for subjectDirPath in subjectDirNamesWithPaths:
+        _, sessionDirNameWithPaths = getDirFromFolder(subjectDirPath)
+        for sessionDirPath in sessionDirNameWithPaths:
+            dirPath = Path(sessionDirPath, 'eeg')
+            files = listFifFiles(dirPath)
+            for file in files:
+                allFilesWithPaths.append(file)
+   
+        
+    return allFilesWithPaths
 
-    return fdtFilesPathsWithSubjectId
 
-def loadRawFdtFile(filePath, eog=config.eogChannels):
-    pdb.set_trace()
-    rawData = read_raw_eeglab(filePath, preload=True)
-    print(rawData.info)
-    return rawData
 
 #####################FDT Files Related########################
-
-
-def preprocessRawFdtFiles():
-    filesWithSubjetIds = getALlFdtFilesWithPaths(config.rawDatasetDir)
-    
-    for subjectID, filePath in filesWithSubjetIds:
-        print(f'Loading {subjectID}')
-        rawData = loadRawFdtFile(filePath)
-        
 
