@@ -2,25 +2,34 @@ import mne
 import config
 from utils import getAllFilesWithPaths
 import pdb
+import numpy as np
+import pandas as pd
 
-class PreprocessData:
+class PreprocessDataAndEvents:
     def __init__(self, filepath, preload=False) -> None:
         self.filePath = filepath
+        self.imaginationRawData = None
+        self.perceptionRawData = None
+        self.auditoryRawData = None
         self.rawData = None
         self.events = None
         self.sampleFreq = None
+        self.eventsCategorized = None
         self.preload = preload
+        print(f'processing {self.filePath} file')
         self.preprocessDataFile()
-
-        
 
     def preprocessDataFile(self):
         self.loadFifFile()
         self.getEventsDetails()
+        self.groupEvents()
         
     def loadFifFile(self):
         self.rawData = mne.io.read_raw_fif(self.filePath, preload=self.preload, verbose=False)
         self.sampleFreq = self.rawData.info['sfreq']
+        self.imaginationRawData = self.rawData.copy().pick(config.imaginationChannels)
+        self.perceptionRawData = self.rawData.copy().pick(config.perceptionChannels)
+        self.auditoryRawData = self.rawData.copy().pick(config.auditoryChannels)
 
     def getEventsDetails(self):
         eventDetails = []
@@ -28,16 +37,57 @@ class PreprocessData:
         for event in self.events:
             onset = event['onset']
             category, duration = self.mapCategory(event['description'])
-            startTime = onset - 1
             endTime = onset + duration
-            startIndex = int(startTime * self.sampleFreq)
+            startIndex = int(onset * self.sampleFreq)
+            baselineStartIndex = startIndex - config.baselinewWindow
             endIndex = int(endTime * self.sampleFreq)
-            eventDetails.append([onset, category, startIndex, endIndex, duration, endIndex-startIndex])
+            eventDetails.append([onset, category, baselineStartIndex, startIndex, endIndex, duration, endIndex-startIndex])
+
+        self.eventDetails = [item for item in eventDetails if item[5] >1]
+
+    def groupEvents(self):
+        onset = []
+        activity = []
+        modality = []
+        semantics = []
+        baselineStartIndex = []
+        startIndex = []
+        endIndex = []
+        duration = []
+        nSamples = []
+
+        for event in self.eventDetails:
+            onset_, category_, baselineStartIndex_, startIndex_, endIndex_, duration_, nSamples_ = event
+            activity_, modality_, semantics_ = category_.split('_')
+            onset.append(onset_)
+            activity.append(activity_)
+            modality.append(modality_)
+            semantics.append(semantics_)
+            baselineStartIndex.append(baselineStartIndex_)
+            startIndex.append(startIndex_)
+            endIndex.append(endIndex_)
+            duration.append(duration_)
+            nSamples.append(nSamples_)
+
+        eventsDict = {
+            'onset': onset, 'activity': activity, 'modality': modality,
+            'semantics': semantics, 'baselineStartIndex': baselineStartIndex,
+            'startIndex': startIndex, 'endIndex': endIndex,  
+            'duration': duration, 'nSamples': nSamples
+        }
         
-        self.eventDetails = [item for item in eventDetails if item[4] !=0]
-        self.imaginationEvents = [item for item in self.eventDetails if 'Imagination' in item[1]]
-        self.perceptionEvents = [item for item in self.eventDetails if 'Perception' in item[1]]
+        self.eventsCategorized = pd.DataFrame(eventsDict)
+    
+    def filterEvents(self, activity=None, modality=None, semantics=None):
+        filtered = self.eventsCategorized
+        if activity is not None:
+            filtered = filtered[filtered['activity'] == activity]
+        if modality is not None:
+            filtered = filtered[filtered['modality'] == modality]
+        if semantics is not None:
+            filtered = filtered[filtered['semantics'] == semantics]
         
+        self.filteredEvents = filtered
 
     def mapCategory(self,category):
         taskType = 'Perception'
@@ -84,19 +134,54 @@ class PreprocessData:
         
 
 class ImaginationPerceptionData:
-    def __init__(self, bidsPath = config.processedDatasetDir) -> None:
+    def __init__(self, 
+                bidsPath = config.processedDatasetDir,
+                activity = 'Imagination',
+                modality = None,
+                semantics = None
+        ) -> None:
+        self.activity = activity
+        self.modality = modality
+        self.semantics = semantics
         self.bidsPath = bidsPath
+        self.trialsData = []
+        self.erpData = []
         self.filePaths = getAllFilesWithPaths(self.bidsPath)
         self.filePaths = [path for path in self.filePaths if 'eeg-1' not in path]
-
-        self.perceptionData = []
-        self.ImaginationData = []
-
+        self.subjectData = []
         self.extractDataFromFiles()
 
 
     def extractDataFromFiles(self):
-        for filePath in self.filePaths:
-            self.fileEventsDetails = PreprocessData(filepath=filePath)
-            break
+        for filePath in self.filePaths[:1]:
+            subject = PreprocessDataAndEvents(filepath=filePath, preload=True)
+            self.subjectData.append(subject)
+            subject.filterEvents(activity=self.activity, 
+                                        modality=self.modality, 
+                                        semantics=self.semantics     
+                                    )
+            self.extractFilteredData(subject, self.activity)
+            self.calculateERPForAllSubjects()
+
         
+    def extractFilteredData(self, subject, activity):
+        if activity == 'Imagination':
+            data = subject.imaginationRawData.get_data()
+        else:
+            data = subject.perceptionRawData.get_data()
+        individualTrials = []
+        for trialIndex in range(subject.filteredEvents.shape[0]):
+            baselineStartIndex = subject.filteredEvents.iloc[trialIndex]['baselineStartIndex']
+            startIndex = subject.filteredEvents.iloc[trialIndex]['startIndex']
+            endIndex = startIndex + config.eventWindow * 1024
+            trialData = data[:, baselineStartIndex:endIndex]
+            individualTrials.append(trialData)
+        self.trialsData.append(np.array(individualTrials))
+        
+    def calculateERPForAllSubjects(self):
+        for index in range(len(self.trialsData)):
+            self.calculateERPForSubject(self.trialsData[index])
+
+    def calculateERPForSubject(self, data):
+        erpData = np.mean(data, axis=0)
+        self.erpData.append(erpData)
