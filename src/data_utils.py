@@ -154,7 +154,7 @@ class ImaginationPerceptionData:
         self.extractDataFromFiles()
 
     def extractDataFromFiles(self):
-        for filePath in self.filePaths[:1]:
+        for filePath in self.filePaths[:2]:
             subject = PreprocessDataAndEvents(filepath=filePath, preload=True)
             self.subjectData.append(subject)
             subject.filterEvents(activity=self.activity, 
@@ -163,6 +163,7 @@ class ImaginationPerceptionData:
                                     )
             self.extractFilteredData(subject, self.activity)
             self.calculateERPForAllSubjects()
+            self.plotERPForAllSubjects()
 
     def extractFilteredData(self, subject, activity):
         if activity == 'Imagination':
@@ -189,9 +190,9 @@ class ImaginationPerceptionData:
 
     def plotERPForAllSubjects(self):
         for index in range(len(self.erpData)):
-            self.plotERPForSubject(self, self.erpData[index], index)
+            self.plotERPForSubject(self.erpData[index], index)
 
-    def plotERPForSubject(data, subjectID):
+    def plotERPForSubject(self, data, subjectID):
         nChannels = data.shape[0]
         n_samples = data.shape[1]
         plotsPerRow = 8
@@ -202,14 +203,13 @@ class ImaginationPerceptionData:
         for index in range(nChannels):
             ax = axes[index]
             ax.plot(data[index])
-            ax.legend([config.imaginationChannels[i]], loc='upper right')  
+            ax.legend([config.imaginationChannels[index]], loc='upper right')  
             ax.axvline(x=config.baselinewWindow, color='r', linestyle='--', label='Stimulus Finish')
-            ax.set_ylabel('Amplitude (uV)')
             ax.spines['top'].set_visible(False)  
             ax.spines['right'].set_visible(False)  
             ax.set_xlabel('')  
 
         for j in range(nChannels, len(axes)):
             fig.delaxes(axes[j])
-
+        fig.tight_layout()
         fig.savefig(f'{subjectID}.png', dpi=600)
