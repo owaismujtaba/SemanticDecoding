@@ -4,6 +4,8 @@ from utils import getAllFilesWithPaths
 import pdb
 import numpy as np
 import pandas as pd
+from matplotlib import pyplot as plt
+
 
 class PreprocessDataAndEvents:
     def __init__(self, filepath, preload=False) -> None:
@@ -151,7 +153,6 @@ class ImaginationPerceptionData:
         self.subjectData = []
         self.extractDataFromFiles()
 
-
     def extractDataFromFiles(self):
         for filePath in self.filePaths[:1]:
             subject = PreprocessDataAndEvents(filepath=filePath, preload=True)
@@ -163,7 +164,6 @@ class ImaginationPerceptionData:
             self.extractFilteredData(subject, self.activity)
             self.calculateERPForAllSubjects()
 
-        
     def extractFilteredData(self, subject, activity):
         if activity == 'Imagination':
             data = subject.imaginationRawData.get_data()
@@ -185,3 +185,31 @@ class ImaginationPerceptionData:
     def calculateERPForSubject(self, data):
         erpData = np.mean(data, axis=0)
         self.erpData.append(erpData)
+
+
+    def plotERPForAllSubjects(self):
+        for index in range(len(self.erpData)):
+            self.plotERPForSubject(self, self.erpData[index], index)
+
+    def plotERPForSubject(data, subjectID):
+        nChannels = data.shape[0]
+        n_samples = data.shape[1]
+        plotsPerRow = 8
+        nRows = int(np.ceil(nChannels/plotsPerRow))
+
+        fig, axes = plt.subplots(nRows, plotsPerRow, figsize=(50,2*nRows))
+        axes = axes.flatten()
+        for index in range(nChannels):
+            ax = axes[index]
+            ax.plot(data[index])
+            ax.legend([config.imaginationChannels[i]], loc='upper right')  
+            ax.axvline(x=config.baselinewWindow, color='r', linestyle='--', label='Stimulus Finish')
+            ax.set_ylabel('Amplitude (uV)')
+            ax.spines['top'].set_visible(False)  
+            ax.spines['right'].set_visible(False)  
+            ax.set_xlabel('')  
+
+        for j in range(nChannels, len(axes)):
+            fig.delaxes(axes[j])
+
+        fig.savefig(f'{subjectID}.png', dpi=600)
