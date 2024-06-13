@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-seperator = '/'
+seperator = '\\'
 
 currentDir = os.getcwd()
 datasetDir = Path(currentDir, 'Dataset')
@@ -15,3 +15,6 @@ perceptionChannels = list(set(['P7', 'P3', 'Pz', 'P4', 'P8', 'POz', 'O1', 'O2', 
 
 baselineWindow = 200 # in ms
 eventWindow = 1
+
+plotsDir = Path(currentDir, 'Images')
+dataFolder = Path(currentDir, 'CategoryWiseData')
