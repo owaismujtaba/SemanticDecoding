@@ -2,19 +2,27 @@ import os
 from pathlib import Path
 
 seperator = '\\'
+baselineWindow = 200
 
+# directory paths
 currentDir = os.getcwd()
-datasetDir = Path(currentDir, 'Dataset')
-rawDatasetDir = Path(currentDir, 'DataSet\derivatives\\fdt_files')
-processedDatasetDir = Path(currentDir, 'DataSet/derivatives/preprocessed')
-eogChannels = ['VEOGL', 'VEOGU', 'HEOGR', 'HEOGL']
+numpyDataDir = Path(currentDir, 'NumpyData')
+preprocessedDatasetDir = Path(currentDir, 'preprocessed')
 
-auditoryChannels = list(set(['T7', 'C3', 'Cz', 'C4', 'T8', 'TP7', 'TP8', 'FT7', 'FT8', 'TP8', 'FT9', 'FT10', 'TTP7h', 'TTP8h']))
-imaginationChannels = list(set(['Fp1', 'Fp2', 'Fpz', 'AF7', 'AF3', 'AFz', 'AF4', 'AF8', 'F7', 'F3', 'Fz', 'F4', 'F8', 'FT7', 'FC3', 'FCz', 'FC4', 'FT8', 'T7', 'C3', 'Cz', 'C4', 'T8', 'TP7', 'CP3', 'CP4', 'TP8', 'P7', 'P3', 'Pz', 'P4', 'P8', 'PO7', 'PO3', 'POz', 'PO4', 'PO8', 'O1', 'O2']))
-perceptionChannels = list(set(['P7', 'P3', 'Pz', 'P4', 'P8', 'POz', 'O1', 'O2', 'PO3', 'PO4', 'PPO1', 'PPO2', 'PO9', 'PO10']))
+# extraction 
+startIndex = 200
+endIndex = startIndex + 1024
+batchSize = 32
+epochs = 50
 
-baselineWindow = 200 # in ms
-eventWindow = 1
 
-plotsDir = Path(currentDir, 'Images')
-dataFolder = Path(currentDir, 'CategoryWiseData')
+# transformer model architecture
+numLayers = 4
+embedDim = 128
+numHeads = 8
+dff = 512
+inputVocabSize = 10000
+maximumPositionEncoding = 10000
+numClasses = 3
+
+trainDataDir =  Path(numpyDataDir, 'SematicData')

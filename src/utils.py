@@ -42,6 +42,7 @@ class PlotERP:
         for index in range(nChannels):
             ax = axes[index]
             ax.plot(erpData[index], color='grey')
+            ax.plot(erpData[index][:config.baselineWindow], color='black')
             if 'Imagination' in category:
                 ax.legend([config.imaginationChannels[index]], loc='upper right')
             if 'Perception' in category:
@@ -173,5 +174,3 @@ def getAllFilesWithPaths(fifDir = config.rawDatasetDir):
 
 #####################FDT Files Related########################
 
-#PlotERP('F:\perceptionImaginationEEG\perceptionImaginationEEG\CategoryWiseData')
-SemanticData1('F:\perceptionImaginationEEG\perceptionImaginationEEG\CategoryWiseData')

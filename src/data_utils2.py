@@ -142,8 +142,7 @@ class ImaginationPerceptionData:
 
         self.saveCategoryDataOfTrials()
         
-        #self.calculateERPForAllSubjects()
-        #self.plotERPForAllSubjects()
+        
 
     def saveCategoryDataOfTrials(self):
         print('Saving data')
@@ -175,41 +174,5 @@ class ImaginationPerceptionData:
         
         self.trialsData.append(np.array(individualTrials))
         
-    def calculateERPForAllSubjects(self):
-        for trials in self.trialsData:
-            self.erpData.append(np.mean(trials, axis=0))
-
-    def plotERPForAllSubjects(self):
-        for index, data in enumerate(self.erpData):
-            self.plotERPForSubject(data, index)
-
-    def plotERPForSubject(self, data, subjectID):
-        pdb.set_trace()
-        nChannels = data.shape[0]
-        plotsPerRow = 8
-        nRows = int(np.ceil(nChannels / plotsPerRow))
-        
-        fig, axes = plt.subplots(nRows, plotsPerRow, figsize=(50, 2 * nRows))
-        axes = axes.flatten()
-        for index in range(nChannels):
-            ax = axes[index]
-            ax.plot(data[index])
-            ax.legend([config.imaginationChannels[index]], loc='upper right')
-            ax.axvline(x=config.baselineWindow, color='r', linestyle='--', label='Stimulus Finish')
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-            ax.set_xlabel('')
-
-        for j in range(nChannels, len(axes)):
-            fig.delaxes(axes[j])
-        fig.tight_layout(rect=[0, 0, 1, 0.96])
-
-        filepath = Path(os.getcwd(), 'Images', self.subjectIDs[subjectID], self.sessionIDs[subjectID])
-        os.makedirs(filepath, exist_ok=True)
-        fig.suptitle(f'{self.subjectIDs[subjectID]}_{self.sessionIDs[subjectID]}')
-        name = f'{self.subjectIDs[subjectID]}_{self.sessionIDs[subjectID]}_{self.activity}_{self.modality}_{self.semantics}_ERP_1.png'
-        fullFilePath = filepath / name
-        print(filepath)
-        print(name)
-        fig.savefig(fullFilePath, dpi=200)
+ 
 
