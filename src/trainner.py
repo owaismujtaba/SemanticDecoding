@@ -14,12 +14,10 @@ import tensorflow as tf
 from tensorflow.keras.layers import LayerNormalization, MultiHeadAttention, Dropout, Dense
 
 def transformer_encoder(inputs, head_size, num_heads, ff_dim, dropout=0):
-    # Self attention layer
     attention = MultiHeadAttention(num_heads=num_heads, key_dim=head_size)(inputs, inputs)
     attention = Dropout(dropout)(attention)
     attention = LayerNormalization(epsilon=1e-6)(inputs + attention)
     
-    # Feedforward neural network
     outputs = Dense(ff_dim, activation='relu')(attention)
     outputs = Dense(inputs.shape[-1])(outputs)  
     outputs = Dropout(dropout)(outputs)
@@ -38,12 +36,9 @@ optimizer = Adam(learning_rate=0.001)
 def build_transformer_model(num_channels, num_time_points, num_classes):
     inputs = Input(shape=(num_channels, num_time_points))
 
-    # Transformer Encoder Layers
-    transformer_block = inputs  # Initial input
-    for _ in range(2):  # Example of 2 transformer encoder layers
+    transformer_block = inputs  
+    for _ in range(2): 
         transformer_block = transformer_encoder(transformer_block, head_size=128, num_heads=4, ff_dim=128, dropout=0.1)
-
-    # Global Average Pooling
     pool = GlobalAveragePooling1D()(transformer_block)
     dropout = Dropout(0.5)(pool)
     outputs = Dense(num_classes, activation='softmax')(dropout)
@@ -58,18 +53,15 @@ model.compile(optimizer=Adam(learning_rate=1e-4),
 dataLoader = NumpyDataLoader(config.trainDataDir, config.batchSize)
 for epoch in range(100):
     for batch_data, batch_labels in dataLoader:
-        # Convert batch_data and batch_labels to TensorFlow tensors
         batch_data_tf = tf.convert_to_tensor(batch_data, dtype=tf.float32)
         batch_labels_tf = tf.convert_to_tensor(batch_labels, dtype=tf.int32)
         
-        # Perform model training (assuming `model` is your Transformer-based model defined earlier)
         with tf.GradientTape() as tape:
             predictions = model(batch_data_tf)
             loss = tf.keras.losses.sparse_categorical_crossentropy(batch_labels_tf, predictions)
             gradients = tape.gradient(loss, model.trainable_variables)
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
     
-    # Optionally, evaluate or print training metrics after each epoch
     print(f'Epoch {epoch + 1}/{100}, Loss: {loss.numpy()}')
 
 

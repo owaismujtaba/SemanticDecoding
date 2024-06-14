@@ -134,3 +134,5 @@ class EEGTransformer(Model):
         x = self.dropout(x, training=training)
         x = self.finalLayer(x)
         return x
+
+
