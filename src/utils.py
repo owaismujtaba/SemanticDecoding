@@ -1,9 +1,26 @@
 from pathlib import Path
 import os
+import torch
 
 import config
 import pdb
 
+def saveTrainedModel(model):
+    print(f'Saving trained model')
+    destinationDir = config.trainedModelDir
+    os.makedirs(destinationDir, exist_ok=True)
+    modelName = config.trainModelName
+    modelNameWithPath = Path(destinationDir, modelName)
+    torch.save(model.state_dict(), modelNameWithPath)
+
+def loadTrainedModel(modelPath):
+    print(f'Loading trained {modelPath} model')
+    from model import TransformerClassifier
+    model = TransformerClassifier()
+    model.load_state_dict(torch.load(modelPath))
+
+    return model
+    
 def getAllFifFilesFromFolder(directory):
     fifFiles = []
     for root, dirs, files in os.walk(directory):

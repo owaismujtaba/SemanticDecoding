@@ -2,6 +2,8 @@ from tqdm import tqdm
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import pdb
+from utils import saveTrainedModel
 
 def trainModel(model, trainLoader, valLoader, numEpochs=25, learningRate=0.001):
     criterion = nn.CrossEntropyLoss()
@@ -20,7 +22,7 @@ def trainModel(model, trainLoader, valLoader, numEpochs=25, learningRate=0.001):
                 runningLoss += loss.item()
                 pbar.set_postfix({'Training Loss': runningLoss / (len(trainLoader) * trainLoader.batch_size)})
                 pbar.update()
-            
+                
         model.eval()
         valLoss = 0.0
         correct = 0
@@ -33,7 +35,7 @@ def trainModel(model, trainLoader, valLoader, numEpochs=25, learningRate=0.001):
                 _, predicted = torch.max(outputs, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
-        
+                
         print(f"Epoch {epoch+1}/{numEpochs}, Training Loss: {runningLoss/len(trainLoader)}, Validation Loss: {valLoss/len(valLoader)}, Validation Accuracy: {100 * correct / total}%")
 
-    return model
+    saveTrainedModel(model)

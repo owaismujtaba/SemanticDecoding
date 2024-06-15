@@ -134,4 +134,5 @@ class SemanticSegmentation:
                 self.preprocessFile(filepath)
 
     def preprocessFile(self, filepath):
-        PreprocessDataAndEvents(filepath)
+        #pdb.set_trace()
+        PreprocessDataAndEvents(filepath, segmentData=True)

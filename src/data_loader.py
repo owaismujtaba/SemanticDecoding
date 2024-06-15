@@ -3,6 +3,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader, random_split
 from torch.utils.data.sampler import WeightedRandomSampler
+from collections import Counter
 
 import config
 import pdb
@@ -21,6 +22,7 @@ class NumpyDataset(Dataset):
         self.filePaths = []
         self.labels = []
         self.classNames = sorted(os.listdir(rootDir))
+        
         self.classToIdx = {clsName: idx for idx, clsName in enumerate(self.classNames)}
         self.classCounts = {clsName: 0 for clsName in self.classNames}
         
@@ -32,7 +34,11 @@ class NumpyDataset(Dataset):
                     self.filePaths.append(filePath)
                     self.labels.append(self.classToIdx[clsName])
 
-        classWeights = [1.0 / self.classCounts[self.classNames[label]] for label in self.labels]
+    
+        classCounts = Counter(self.labels)
+        nSamples = len(self.labels)
+        nClasses = len(classCounts)
+        classWeights = [nSamples/(nClasses*classCounts[label]) for label in self.labels]
         self.sampler = WeightedRandomSampler(weights=classWeights, num_samples=len(classWeights), replacement=True)
 
 
