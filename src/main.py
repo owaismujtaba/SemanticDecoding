@@ -4,6 +4,7 @@ from trainner import trainModel
 import config
 from data_utils import SemanticSegmentation
 from utils import loadTrainedModel
+from eval import classificationReport
 from pathlib import Path
 import pdb
 
@@ -16,15 +17,14 @@ if __name__ == "__main__":
 
 
     if config.train:
-        trainLoader, valLoader = createDataLoaders()
+        trainLoader, valLoader, _ = createDataLoaders()
         model = TransformerClassifier(config.inputDim, config.numClasses)
         trainedModel = trainModel(model, trainLoader, valLoader, numEpochs=config.epochs, learningRate=0.001)
 
-    if config.inference:
+    if config.eval:
         trainedModelDir = config.trainedModelDir
         modelName = config.trainedModelName
-
         modelPath = Path(trainedModelDir, modelName)
-
         model = loadTrainedModel(modelPath)
+        classificationReport(model)
         

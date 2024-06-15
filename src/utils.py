@@ -5,6 +5,9 @@ import torch
 import config
 import pdb
 
+
+
+
 def saveTrainedModel(model):
     print(f'Saving trained model')
     destinationDir = config.trainedModelDir

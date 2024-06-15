@@ -88,4 +88,4 @@ def createDataLoaders(rootDir=config.trainDataDir,
     trainLoader = DataLoader(trainDataset, batch_size=batchSize, sampler=trainSampler, num_workers=numWorkers)
     valLoader = DataLoader(valDataset, batch_size=batchSize, shuffle=False, num_workers=numWorkers)
     
-    return trainLoader, valLoader
+    return trainLoader, valLoader, dataset.classToIdx

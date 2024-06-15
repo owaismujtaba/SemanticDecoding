@@ -4,8 +4,8 @@ from pathlib import Path
 seperator = '\\'
 baselineWindow = 200
 segmentDataBasedOnSemantics = False
-train = True
-inference = False
+train = False
+eval = True
 trainModelName = 'initial.pth'
 trainedModelName = 'initial.pth'
 # directory paths
@@ -16,7 +16,7 @@ preprocessedDatasetDir = Path(currentDir, 'preprocessed')
 # extraction 
 startIndex = 200
 endIndex = startIndex + 1024
-batchSize = 128
+batchSize = 256
 epochs = 10
 
 
