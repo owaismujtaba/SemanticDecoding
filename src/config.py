@@ -17,12 +17,13 @@ epochs = 50
 
 
 # transformer model architecture
-numLayers = 4
-embedDim = 128
-numHeads = 8
-dff = 512
-inputVocabSize = 10000
-maximumPositionEncoding = 10000
+inputDim = 1024 
+seqLength = 124
+dModel = 512 
+nHead = 8
+numEncoderLayers = 6 
+dimFeedforward = 2048
+dropout = 0.1
 numClasses = 3
 
 trainDataDir =  Path(numpyDataDir, 'SematicData')

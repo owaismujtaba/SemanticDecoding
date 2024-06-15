@@ -1,131 +1,88 @@
 import mne
-import config
-from utils import getAllFilesWithPaths
-import pdb
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot as plt
-from pathlib import Path
 import os
+from pathlib import Path
+import threading
 
+from utils import getAllPreprocessedFiles
+import config
+import pdb
 
 class PreprocessDataAndEvents:
-    def __init__(self, filepath, preload=False) -> None:
+    def __init__(self, filepath, preload=False, segmentData=False):
         self.filePath = filepath
-        self.imaginationRawData = None
-        self.perceptionRawData = None
-        self.auditoryRawData = None
-        self.rawData = None
-        self.events = None
-        self.sampleFreq = None
-        self.eventsCategorized = None
         self.preload = preload
-        print(f'processing {self.filePath} file')
+        self.segementDataFlag = segmentData
+        filepath = filepath.split(config.seperator)
+        self.subjectId = filepath[-4]
+        self.sessionId = filepath[-3]
+        print(f'Processing {self.subjectId} {self.sessionId} file')
+        
         self.preprocessDataFile()
 
     def preprocessDataFile(self):
         self.loadFifFile()
         self.getEventsDetails()
         self.groupEvents()
-        
+        self.splitEventsBySemantics()
+        if self.segementDataFlag:
+            self.extractDataBySemantics()
+
     def loadFifFile(self):
         self.rawData = mne.io.read_raw_fif(self.filePath, preload=self.preload, verbose=False)
         self.sampleFreq = self.rawData.info['sfreq']
-        self.imaginationRawData = self.rawData.copy().pick(config.imaginationChannels)
-        self.perceptionRawData = self.rawData.copy().pick(config.perceptionChannels)
-        self.auditoryRawData = self.rawData.copy().pick(config.auditoryChannels)
         self.events = self.rawData.annotations
-        del self.rawData
 
     def getEventsDetails(self):
         eventDetails = []
         for event in self.events:
             onset = event['onset']
             category, duration = self.mapCategory(event['description'])
-            endTime = onset + duration
-            startIndex = int(onset * self.sampleFreq)
-            baselineStartIndex = startIndex - config.baselinewWindow
-            endIndex = int(endTime * self.sampleFreq)
-            eventDetails.append([onset, category, baselineStartIndex, startIndex, endIndex, duration, endIndex-startIndex])
+            startIndex = int(onset*self.sampleFreq)
+            baselineStartIndex = startIndex - config.baselineWindow
+            endIndex = startIndex + int(duration*self.sampleFreq)
+            eventDetails.append([onset, category, baselineStartIndex, startIndex, endIndex, duration, endIndex - startIndex])
+            
 
-        self.eventDetails = [item for item in eventDetails if item[5] >1]
-
+        self.eventDetails = [item for item in eventDetails if item[5] > 1]
+        
     def groupEvents(self):
-        onset = []
-        activity = []
-        modality = []
-        semantics = []
-        baselineStartIndex = []
-        startIndex = []
-        endIndex = []
-        duration = []
-        nSamples = []
+        eventDetailsArray = np.array(self.eventDetails, dtype=object)
+        columns = ['onset', 'category', 'baselineStartIndex', 'startIndex', 'endIndex', 'duration', 'nSamples']
+        eventsDict = {col: eventDetailsArray[:, idx] for idx, col in enumerate(columns)}
 
-        for event in self.eventDetails:
-            onset_, category_, baselineStartIndex_, startIndex_, endIndex_, duration_, nSamples_ = event
-            activity_, modality_, semantics_ = category_.split('_')
-            onset.append(onset_)
-            activity.append(activity_)
-            modality.append(modality_)
-            semantics.append(semantics_)
-            baselineStartIndex.append(baselineStartIndex_)
-            startIndex.append(startIndex_)
-            endIndex.append(endIndex_)
-            duration.append(duration_)
-            nSamples.append(nSamples_)
-
-        eventsDict = {
-            'onset': onset, 'activity': activity, 'modality': modality,
-            'semantics': semantics, 'baselineStartIndex': baselineStartIndex,
-            'startIndex': startIndex, 'endIndex': endIndex,  
-            'duration': duration, 'nSamples': nSamples
-        }
+        splitCategories = [category.split('_') for category in eventsDict['category']]
+        activity, modality, semantics = zip(*splitCategories)
         
+        eventsDict.update({
+            'activity': activity,
+            'modality': modality,
+            'semantics': semantics
+        })
+
         self.eventsCategorized = pd.DataFrame(eventsDict)
-    
-    def filterEvents(self, activity=None, modality=None, semantics=None):
-        filtered = self.eventsCategorized
-        if activity is not None:
-            filtered = filtered[filtered['activity'] == activity]
-        if modality is not None:
-            filtered = filtered[filtered['modality'] == modality]
-        if semantics is not None:
-            filtered = filtered[filtered['semantics'] == semantics]
-        
-        self.filteredEvents = filtered
+        self.eventsCategorized[['activityType', 'modalityType', 'semanticType']] = self.eventsCategorized['category'].str.split('_', expand=True)
+        self.eventsCategorized.drop('category', inplace=True, axis=1)
+        del self.eventDetails
 
-    def mapCategory(self,category):
-        taskType = 'Perception'
-        activityType = 'Audio'
-        classType = 'Flower'
-        if 'Perception' in category:
-            if '_a_' in category or 'a_' in category:
-                duration = 2
-            elif '_image_' in category:
-                duration = 3
-                activityType = 'Image'
-            elif '_t_' in category:
-                duration = 3
-                activityType = 'Text'
-            else:
-                activityType = ''
-                duration = 0
+    def mapCategory(self, category):
+        taskType = 'Perception' if 'Perception' in category else 'Imagination'
+        if '_a_' in category or 'a_' in category:
+            activityType = 'Audio'
+            duration = 2 if taskType == 'Perception' else 4
+        elif '_image_' in category:
+            activityType = 'Image'
+            duration = 3 if taskType == 'Perception' else 4
+        elif '_t_' in category:
+            activityType = 'Text'
+            duration = 3 if taskType == 'Perception' else 4
         else:
-            taskType = 'Imagination'
-            if '_a_' in category or 'a_' in category:
-                duration = 4
-            elif '_image_' in category:
-                duration = 4
-                activityType = 'Image'
-            elif '_t_' in category:
-                duration = 4
-                activityType = 'Text'
-            else:
-                activityType = ''
-                duration = 0
+            activityType = ''
+            duration = 0
 
         if 'flower' in category:
-            pass
+            classType = 'Flower'
         elif 'guitar' in category:
             classType = 'Guitar'
         elif 'penguin' in category:
@@ -133,109 +90,48 @@ class PreprocessDataAndEvents:
         else:
             classType = ''
 
-        
-
         return f'{taskType}_{activityType}_{classType}', duration
+    
+    def splitEventsBySemantics(self):
+        semanticTypes = self.eventsCategorized['semanticType'].unique()
+        self.semanticTypesEvents = {semanticType: self.eventsCategorized[self.eventsCategorized['semanticType'] == semanticType].reset_index(drop=True) for semanticType in semanticTypes}
+
+    def extractDataBySemantics(self):
+        numpyRawData = self.rawData.copy().get_data()
+        dirDestination = Path(config.numpyDataDir, 'SematicData')
+        
+        for semnticCategory, events in self.semanticTypesEvents.items():
+            dirCategory = Path(dirDestination, semnticCategory)
+            os.makedirs(dirCategory, exist_ok=True)
+            baselineStartIndexes = events['baselineStartIndex']
+            endIndexs = events['endIndex']
+            for index in range(events.shape[0]):
+                filename = f'{self.subjectId}_{self.sessionId}_{index}'
+                filenameWithPath = Path(dirCategory, filename)
+                startIndex = baselineStartIndexes[index]
+                endIndex = endIndexs[index]
+                data = numpyRawData[:, startIndex:endIndex]
+                np.save(filenameWithPath, data)
+                print(f'Saved {filenameWithPath}')
+
+class SemanticSegmentation:
+    def __init__(self) -> None:
+        self.filepaths = getAllPreprocessedFiles()
+        self.threading = False
         
 
-class ImaginationPerceptionData:
-    def __init__(self, 
-                bidsPath = config.processedDatasetDir,
-                activity = 'Imagination',
-                modality = None,
-                semantics = None
-        ) -> None:
-        self.activity = activity
-        self.modality = modality
-        self.semantics = semantics
-        self.bidsPath = bidsPath
-        self.subjectIDs = []
-        self.sessionIDs = []
-        self.plotCount = 0
-        self.trialsData = []
-        self.erpData = []
-        self.filePaths = getAllFilesWithPaths(self.bidsPath)
-        self.filePaths = [path for path in self.filePaths if 'eeg-1' not in path and 'sub-013' not in path]
-        self.subjectData = []
-        self.extractDataFromFiles()
+    def segmentFiles(self):
+        threads = []
+        for filepath in self.filepaths:
+            if self.threading:
+                thread = threading.Thread(target=self.preprocessFile, args=(filepath,))
+                threads.append(thread)
+                thread.start()
+                for thread in threads:
+                    thread.join()
+                    self.preprocessFile(filepath)
+            else:
+                self.preprocessFile(filepath)
 
-    def extractDataFromFiles(self):
-        for filePath in self.filePaths:
-            subjectID = filePath.split(config.seperator)[-4]
-            sessionID = filePath.split(config.seperator)[-3]
-            print(f'Extraction ::: Subject {subjectID}: session {sessionID}')
-            self.subjectIDs.append(subjectID)
-            self.sessionIDs.append(sessionID)
-            subject = PreprocessDataAndEvents(filepath=filePath, preload=False)
-            self.subjectData.append(subject)
-            subject.filterEvents(activity=self.activity, 
-                                        modality=self.modality, 
-                                        semantics=self.semantics     
-                                    )
-            self.extractFilteredData(subject, self.activity)
-            self.calculateERPForAllSubjects()
-            self.plotERPForAllSubjects()
-
-    def extractFilteredData(self, subject, activity):
-        if activity == 'Imagination':
-            data = subject.imaginationRawData.get_data()
-        else:
-            data = subject.perceptionRawData.get_data()
-        individualTrials = []
-        print('Extracting data')
-        for trialIndex in range(subject.filteredEvents.shape[0]):
-            baselineStartIndex = subject.filteredEvents.iloc[trialIndex]['baselineStartIndex']
-            startIndex = subject.filteredEvents.iloc[trialIndex]['startIndex']
-            endIndex = startIndex + config.eventWindow * 1024
-            trialData = data[:, baselineStartIndex:endIndex]
-            individualTrials.append(trialData)
-        self.trialsData.append(np.array(individualTrials))
-        print('Extraction Done')
-        
-    def calculateERPForAllSubjects(self):
-        print('Trails.',len(self.trialsData))
-        for index in range(len(self.trialsData)):
-            self.calculateERPForSubject(self.trialsData[index])
-        print('Erp done')
-
-    def calculateERPForSubject(self, data):
-        erpData = np.mean(data, axis=0)
-        self.erpData.append(erpData)
-
-
-    def plotERPForAllSubjects(self):
-        for index in range(len(self.erpData)):
-            self.plotERPForSubject(self.erpData[index], index)
-        self.plotCount += 1
-
-    def plotERPForSubject(self, data, subjectID):
-        nChannels = data.shape[0]
-        n_samples = data.shape[1]
-        plotsPerRow = 8
-        nRows = int(np.ceil(nChannels/plotsPerRow))
-
-        fig, axes = plt.subplots(nRows, plotsPerRow, figsize=(50,2*nRows))
-        axes = axes.flatten()
-        for index in range(nChannels):
-            ax = axes[index]
-            ax.plot(data[index])
-            ax.legend([config.imaginationChannels[index]], loc='upper right')  
-            ax.axvline(x=config.baselinewWindow, color='r', linestyle='--', label='Stimulus Finish')
-            ax.spines['top'].set_visible(False)  
-            ax.spines['right'].set_visible(False)  
-            ax.set_xlabel('')  
-
-        for j in range(nChannels, len(axes)):
-            fig.delaxes(axes[j])
-        #fig.tight_layout()
-        fig.tight_layout(rect=[0, 0, 1, 0.96])
-        filepath = Path(os.getcwd(), 'Images')
-        filepath = Path(filepath, self.subjectIDs[self.plotCount])
-        filepath = Path(filepath, self.sessionIDs[self.plotCount])
-        os.makedirs(filepath, exist_ok=True)
-        fig.suptitle(f'{self.subjectIDs[self.plotCount]}_{self.sessionIDs[self.plotCount]}')
-        print(self.subjectIDs[self.plotCount], self.sessionIDs[self.plotCount], self.plotCount)
-        name = f'{self.subjectIDs[self.plotCount]}_{self.sessionIDs[self.plotCount]}_{self.activity}_{self.modality}_{self.semantics}_ERP.png'
-        fullFilePath = Path(filepath, name)
-        fig.savefig(fullFilePath, dpi=200)
-        
+    def preprocessFile(self, filepath):
+        PreprocessDataAndEvents(filepath)

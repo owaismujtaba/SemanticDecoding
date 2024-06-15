@@ -1,25 +1,9 @@
-from data_utils2 import ImaginationPerceptionData
-import config
-import mne
-import numpy as np
-from utils import PlotERP
+from data_loader import createDataLoaders
+from model import TransformerClassifier
+from trainner import trainModel
 
 
-#bidsPath = '/media/owais/UBUNTU 20_0/perceptionImaginationEEG/perceptionImaginationEEG/DataSet/derivatives/preprocessed'
-bidsPath = 'C:\ImaginationPerceptionDataset\DataSet\perceptionImaginationEEG\preprocessed'
-activities = ['Imagination', 'Perception']
-modalities = [None, 'Audio', 'Text', 'Image']
-sematices = [None, 'Guitar', 'Flower', 'Penguin']
-for activity in activities:
-    for modality in modalities:
-        for category in sematices:
-            print('Task')
-            print(activity, modality, category)
-            data = ImaginationPerceptionData(bidsPath=bidsPath, activity=activity, modality=modality, semantics=category)
-            
-    
-       
-
-PlotERP(config.dataFolder)
-    
-    
+if __name__ == "__main__":
+    trainLoader, valLoader = createDataLoaders()
+    model = TransformerClassifier(1024, 3)
+    trainedModel = trainModel(model, trainLoader, valLoader, numEpochs=25, learningRate=0.001)
