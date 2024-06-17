@@ -12,14 +12,14 @@ import pdb
 if __name__ == "__main__":
 
     if config.segmentDataBasedOnSemantics:
-        segmentData = SemanticSegmentation()
+        segmentData = SemanticSegmentation(scaling=True)
         segmentData.segmentFiles()
 
 
     if config.train:
-        trainLoader, valLoader, _ = createDataLoaders()
+        trainLoader, valLoader, _ = createDataLoaders(rootDir=config.scaledDataDir)
         model = TransformerClassifier(config.inputDim, config.numClasses)
-        model = CNNModel(config.numClasses)
+        #model = CNNModel(config.numClasses)
         trainedModel = trainModel(model, trainLoader, valLoader, numEpochs=config.epochs, learningRate=0.001)
 
     if config.eval:

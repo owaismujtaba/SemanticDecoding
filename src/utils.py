@@ -18,8 +18,11 @@ def saveTrainedModel(model):
 
 def loadTrainedModel(modelPath):
     print(f'Loading trained {modelPath} model')
-    from model import TransformerClassifier
-    model = TransformerClassifier()
+    from model import TransformerClassifier, CNNModel
+    if 'cnn' in config.trainedModelName:
+        model = CNNModel()
+    if 'tranformer' in config.trainedModelName:
+        model = TransformerClassifier()
     model.load_state_dict(torch.load(modelPath))
 
     return model

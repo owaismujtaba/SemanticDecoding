@@ -4,16 +4,18 @@ import pandas as pd
 import os
 from pathlib import Path
 import threading
+from sklearn.preprocessing import MinMaxScaler
 
 from utils import getAllPreprocessedFiles
 import config
 import pdb
 
 class PreprocessDataAndEvents:
-    def __init__(self, filepath, preload=False, segmentData=False):
+    def __init__(self, filepath, preload=False, segmentData=False, scaling=False):
         self.filePath = filepath
         self.preload = preload
         self.segementDataFlag = segmentData
+        self.scaling = scaling
         filepath = filepath.split(config.seperator)
         self.subjectId = filepath[-4]
         self.sessionId = filepath[-3]
@@ -98,7 +100,13 @@ class PreprocessDataAndEvents:
 
     def extractDataBySemantics(self):
         numpyRawData = self.rawData.copy().get_data()
-        dirDestination = Path(config.numpyDataDir, 'SematicData')
+        if self.scaling:
+            print(f'Normalizing data')
+            dirDestination = Path(config.scaledDataDir)
+            scaler = MinMaxScaler()
+            numpyRawData = scaler.fit_transform(numpyRawData)
+        else:
+            dirDestination = Path(config.numpyDataDir, 'SematicData')
         
         for semnticCategory, events in self.semanticTypesEvents.items():
             dirCategory = Path(dirDestination, semnticCategory)
@@ -108,7 +116,6 @@ class PreprocessDataAndEvents:
             for index in range(events.shape[0]):
                 activity = events['activity'][index]
                 modality = events['modality'][index]
-                pdb.set_trace()
                 filename = f'{self.subjectId}_{self.sessionId}_{activity}_{modality}_{semnticCategory}_{index}'
                 filenameWithPath = Path(dirCategory, filename)
                 startIndex = baselineStartIndexes[index]
@@ -118,9 +125,10 @@ class PreprocessDataAndEvents:
                 print(f'Saved {filenameWithPath}')
 
 class SemanticSegmentation:
-    def __init__(self) -> None:
+    def __init__(self, scaling=False) -> None:
         self.filepaths = getAllPreprocessedFiles()
         self.threading = False
+        self.scaling = scaling
         
 
     def segmentFiles(self):
@@ -138,4 +146,4 @@ class SemanticSegmentation:
 
     def preprocessFile(self, filepath):
         #pdb.set_trace()
-        PreprocessDataAndEvents(filepath, segmentData=True)
+        PreprocessDataAndEvents(filepath, segmentData=True, scaling=self.scaling)

@@ -29,7 +29,10 @@ class NumpyDataset(Dataset):
         for clsName in self.classNames:
             clsFolder = os.path.join(rootDir, clsName)
             for fileName in os.listdir(clsFolder):
+                if 'sub-08' not in fileName:
+                    continue
                 if fileName.endswith('.npy'):
+                    print(fileName)
                     filePath = os.path.join(clsFolder, fileName)
                     self.filePaths.append(filePath)
                     self.labels.append(self.classToIdx[clsName])
