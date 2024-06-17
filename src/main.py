@@ -1,5 +1,5 @@
 from data_loader import createDataLoaders
-from model import TransformerClassifier
+from model import TransformerClassifier, CNNModel
 from trainner import trainModel
 import config
 from data_utils import SemanticSegmentation
@@ -19,6 +19,7 @@ if __name__ == "__main__":
     if config.train:
         trainLoader, valLoader, _ = createDataLoaders()
         model = TransformerClassifier(config.inputDim, config.numClasses)
+        model = CNNModel(config.numClasses)
         trainedModel = trainModel(model, trainLoader, valLoader, numEpochs=config.epochs, learningRate=0.001)
 
     if config.eval:

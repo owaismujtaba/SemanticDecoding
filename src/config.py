@@ -3,11 +3,11 @@ from pathlib import Path
 
 seperator = '\\'
 baselineWindow = 200
-segmentDataBasedOnSemantics = False
+segmentDataBasedOnSemantics = True
 train = False
-eval = True
-trainModelName = 'initial.pth'
-trainedModelName = 'initial.pth'
+eval = False
+trainModelName = 'initial_cnn.pth'
+trainedModelName = 'initial_cnn.pth'
 # directory paths
 currentDir = os.getcwd()
 numpyDataDir = Path(currentDir, 'NumpyData')
@@ -17,7 +17,7 @@ preprocessedDatasetDir = Path(currentDir, 'preprocessed')
 startIndex = 200
 endIndex = startIndex + 1024
 batchSize = 256
-epochs = 10
+epochs = 1000
 
 
 # transformer model architecture

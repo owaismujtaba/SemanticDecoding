@@ -106,7 +106,10 @@ class PreprocessDataAndEvents:
             baselineStartIndexes = events['baselineStartIndex']
             endIndexs = events['endIndex']
             for index in range(events.shape[0]):
-                filename = f'{self.subjectId}_{self.sessionId}_{index}'
+                activity = events['activity'][index]
+                modality = events['modality'][index]
+                pdb.set_trace()
+                filename = f'{self.subjectId}_{self.sessionId}_{activity}_{modality}_{semnticCategory}_{index}'
                 filenameWithPath = Path(dirCategory, filename)
                 startIndex = baselineStartIndexes[index]
                 endIndex = endIndexs[index]
