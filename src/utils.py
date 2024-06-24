@@ -12,7 +12,7 @@ def saveTrainedModel(model):
     print(f'Saving trained model')
     destinationDir = config.trainedModelDir
     os.makedirs(destinationDir, exist_ok=True)
-    modelName = config.trainModelName
+    modelName = config.trainedModelName
     modelNameWithPath = Path(destinationDir, modelName)
     torch.save(model.state_dict(), modelNameWithPath)
 

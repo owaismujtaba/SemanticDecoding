@@ -86,3 +86,23 @@ class CNNModel(nn.Module):
         
         x = self.fc2(x)
         return x
+
+
+class BiLSTMEEGClassifier(nn.Module):
+    def __init__(self, inputDim=config.inputDim, hiddenDim=config.seqLength, nLayers=4):
+        super(BiLSTMEEGClassifier, self).__init__()
+        self.lstm = nn.LSTM(
+            input_size=inputDim,
+            hidden_size=hiddenDim,
+            num_layers=nLayers, 
+            bidirectional=True, 
+            batch_first=True
+        )
+        self.fc = nn.Linear(hiddenDim * 2, config.numClasses)  # hidden_dim * 2 for bidirectional
+        self.dropout = nn.Dropout(config.dropout)
+
+    def forward(self, x):
+        #pdb.set_trace()
+        lstm_out, _ = self.lstm(x)
+        out = self.fc(self.dropout(lstm_out[:, -1, :]))
+        return out
