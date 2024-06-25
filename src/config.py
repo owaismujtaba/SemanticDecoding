@@ -17,6 +17,8 @@ trainDataDir =  Path(numpyDataDir, 'SematicData')
 trainedModelDir = Path(currentDir, 'TrainedModels')
 scaledSementicDataDir = Path(numpyDataDir, 'ScaledSemantic')
 sementicDataDir = Path(numpyDataDir, 'SematicData')
+ImagesDir = Path(currentDir, 'Images')
+
 # extraction 
 startIndex = 200
 endIndex = startIndex + 1024
