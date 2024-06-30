@@ -34,7 +34,7 @@ nHead = 8
 numEncoderLayers = 6 
 dimFeedforward = 2048
 dropout = 0.1
-numClasses = 3
+numClasses = 2
 
 
 
