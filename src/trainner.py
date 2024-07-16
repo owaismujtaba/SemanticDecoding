@@ -1,41 +1,66 @@
-from tqdm import tqdm
-import torch
-import torch.nn as nn
-import torch.optim as optim
+
+from sklearn.metrics import classification_report
+
+import numpy as np
+from tensorflow.keras.callbacks import EarlyStopping
 import pdb
-from utils import saveTrainedModel
+from pathlib import Path
+from src import config
+from src.utils import saveTensorFlowModel
+import pandas as pd
 
-def trainModel(model, trainLoader, valLoader, numEpochs=25, learningRate=0.001):
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=learningRate)
+import os
+if config.device == 'CPU':
+    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+import tensorflow as tf
 
-    for epoch in range(numEpochs):
-        model.train()
-        runningLoss = 0.0
-        with tqdm(total=len(trainLoader), desc=f"Epoch {epoch+1}/{numEpochs}", unit="batch") as pbar:
-            for inputs, labels in trainLoader:
-                optimizer.zero_grad()
-                outputs = model(inputs)
-                loss = criterion(outputs, labels)
-                loss.backward()
-                optimizer.step()
-                runningLoss += loss.item()
-                pbar.set_postfix({'Training Loss': runningLoss / (len(trainLoader) * trainLoader.batch_size)})
-                pbar.update()
-                
-        model.eval()
-        valLoss = 0.0
-        correct = 0
-        total = 0
-        with torch.no_grad():
-            for inputs, labels in valLoader:
-                outputs = model(inputs)
-                loss = criterion(outputs, labels)
-                valLoss += loss.item()
-                _, predicted = torch.max(outputs, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
-                
-        print(f"Epoch {epoch+1}/{numEpochs}, Training Loss: {runningLoss/len(trainLoader)}, Validation Loss: {valLoss/len(valLoader)}, Validation Accuracy: {100 * correct / total}%")
+class EEGModelTrainer:
+    def __init__(self, model, modelName, taskType, numEpochs=config.numEpochs, batchSize=config.batchSize):
+        self.model = model
+        self.modelName = modelName
+        self.taskType = taskType
+        self.destinationDir = Path(config.trainedModelsDir, self.taskType)
+        self.numEpochs = numEpochs
+        self.batchSize = batchSize
+        self.report=None
+        self.history = None
+        os.makedirs(self.destinationDir, exist_ok=True)
 
-    saveTrainedModel(model)
+    def train(self, xTrain, yTrain, xVal, yVal):
+        
+        early_stopping = EarlyStopping(
+            monitor='val_loss', 
+            patience=5, 
+            restore_best_weights=True
+        )
+        
+        self.model.compile(
+            optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+            loss='sparse_categorical_crossentropy',
+            metrics=['accuracy']
+        )        
+        print(self.model.summary())
+       
+        self.history = self.model.fit(xTrain, yTrain, 
+                        epochs=self.numEpochs, 
+                        batch_size=self.batchSize, 
+                        validation_data=(xVal, yVal),
+                        callbacks=[early_stopping]
+                    )
+        modelNameWithPath = Path(self.destinationDir, self.modelName)
+        saveTensorFlowModel(self.model, f"{modelNameWithPath}.h5")
+        self.history = pd.DataFrame(self.history.history)
+        self.history.to_csv(f"{modelNameWithPath}.csv")
+        self.performance(xVal, yVal)
+    
+    def performance(self, xTest, yTest):
+        
+        with tf.device('/CPU:0'):
+            predictions = self.model.predict(xTest)
+            predictions = np.argmax(predictions, axis=1)
+            trueLabels = np.array(yTest)
+            
+            self.report = classification_report(trueLabels, predictions, output_dict=True)
+            print(self.report)
+
+        
